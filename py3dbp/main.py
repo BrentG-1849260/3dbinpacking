@@ -6,12 +6,11 @@ START_POSITION = [0, 0, 0]
 
 
 class Item:
-    def __init__(self, name, width, height, depth, weight):
+    def __init__(self, name, width, height, depth):
         self.name = name
         self.width = width
         self.height = height
         self.depth = depth
-        self.weight = weight
         self.rotation_type = 0
         self.position = START_POSITION
         self.number_of_decimals = DEFAULT_NUMBER_OF_DECIMALS
@@ -20,12 +19,11 @@ class Item:
         self.width = set_to_decimal(self.width, number_of_decimals)
         self.height = set_to_decimal(self.height, number_of_decimals)
         self.depth = set_to_decimal(self.depth, number_of_decimals)
-        self.weight = set_to_decimal(self.weight, number_of_decimals)
         self.number_of_decimals = number_of_decimals
 
     def string(self):
-        return "%s(%sx%sx%s, weight: %s) pos(%s) rt(%s) vol(%s)" % (
-            self.name, self.width, self.height, self.depth, self.weight,
+        return "%s(%sx%sx%s) pos(%s) rt(%s) vol(%s)" % (
+            self.name, self.width, self.height, self.depth,
             self.position, self.rotation_type, self.get_volume()
         )
 
@@ -54,12 +52,11 @@ class Item:
 
 
 class Bin:
-    def __init__(self, name, width, height, depth, max_weight):
+    def __init__(self, name, width, height, depth):
         self.name = name
         self.width = width
         self.height = height
         self.depth = depth
-        self.max_weight = max_weight
         self.items = []
         self.unfitted_items = []
         self.number_of_decimals = DEFAULT_NUMBER_OF_DECIMALS
@@ -68,12 +65,11 @@ class Bin:
         self.width = set_to_decimal(self.width, number_of_decimals)
         self.height = set_to_decimal(self.height, number_of_decimals)
         self.depth = set_to_decimal(self.depth, number_of_decimals)
-        self.max_weight = set_to_decimal(self.max_weight, number_of_decimals)
         self.number_of_decimals = number_of_decimals
 
     def string(self):
-        return "%s(%sx%sx%s, max_weight:%s) vol(%s)" % (
-            self.name, self.width, self.height, self.depth, self.max_weight,
+        return "%s(%sx%sx%s) vol(%s)" % (
+            self.name, self.width, self.height, self.depth,
             self.get_volume()
         )
 
@@ -81,14 +77,6 @@ class Bin:
         return set_to_decimal(
             self.width * self.height * self.depth, self.number_of_decimals
         )
-
-    def get_total_weight(self):
-        total_weight = 0
-
-        for item in self.items:
-            total_weight += item.weight
-
-        return set_to_decimal(total_weight, self.number_of_decimals)
 
     def put_item(self, item, pivot):
         fit = False
@@ -113,10 +101,6 @@ class Bin:
                     break
 
             if fit:
-                if self.get_total_weight() + item.weight > self.max_weight:
-                    fit = False
-                    return fit
-
                 self.items.append(item)
 
             if not fit:
@@ -190,22 +174,15 @@ class Packer:
         if not fitted:
             bin.unfitted_items.append(item)
 
-    def pack(
-        self, bigger_first=False, distribute_items=False,
-        number_of_decimals=DEFAULT_NUMBER_OF_DECIMALS
-    ):
+    def pack(self, bigger_first=False, distribute_items=False, number_of_decimals=DEFAULT_NUMBER_OF_DECIMALS):
         for bin in self.bins:
             bin.format_numbers(number_of_decimals)
 
         for item in self.items:
             item.format_numbers(number_of_decimals)
 
-        self.bins.sort(
-            key=lambda bin: bin.get_volume(), reverse=bigger_first
-        )
-        self.items.sort(
-            key=lambda item: item.get_volume(), reverse=bigger_first
-        )
+        self.bins.sort(key=lambda bin: bin.get_volume(), reverse=bigger_first)
+        self.items.sort(key=lambda item: item.get_volume(), reverse=bigger_first)
 
         for bin in self.bins:
             for item in self.items:
