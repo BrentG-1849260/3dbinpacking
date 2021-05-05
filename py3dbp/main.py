@@ -6,11 +6,12 @@ START_POSITION = [0, 0, 0]
 
 
 class Item:
-    def __init__(self, name, width, height, depth):
+    def __init__(self, name, width, height, depth, rotate):
         self.name = name
         self.width = width
         self.height = height
         self.depth = depth
+        self.rotate = rotate
         self.rotation_type = 0
         self.position = START_POSITION
         self.number_of_decimals = DEFAULT_NUMBER_OF_DECIMALS
@@ -58,7 +59,6 @@ class Bin:
         self.height = height
         self.depth = depth
         self.items = []
-        self.unfitted_items = []
         self.number_of_decimals = DEFAULT_NUMBER_OF_DECIMALS
 
     def format_numbers(self, number_of_decimals):
@@ -83,7 +83,7 @@ class Bin:
         valid_item_position = item.position
         item.position = pivot
 
-        for i in range(0, len(RotationType.ALL)):
+        for i in range(0, len(RotationType.ALL) if item.rotate else 1):
             item.rotation_type = i
             dimension = item.get_dimension()
             if (
@@ -114,38 +114,21 @@ class Bin:
         return fit
 
 
-class Packer:
-    def __init__(self):
-        self.bins = []
-        self.items = []
-        self.unfit_items = []
-        self.total_items = 0
+def pack_to_bin(bin, item):
+    fitted = False
 
-    def add_bin(self, bin):
-        return self.bins.append(bin)
+    if not bin.items:
+        response = bin.put_item(item, START_POSITION)
+        if not response:
+            bin.unfitted_items.append(item)
+        return True
 
-    def add_item(self, item):
-        self.total_items = len(self.items) + 1
-
-        return self.items.append(item)
-
-    def pack_to_bin(self, bin, item):
-        fitted = False
-
-        if not bin.items:
-            response = bin.put_item(item, START_POSITION)
-
-            if not response:
-                bin.unfitted_items.append(item)
-
-            return
-
-        for axis in range(0, 3):
-            items_in_bin = bin.items
-
-            for ib in items_in_bin:
-                pivot = [0, 0, 0]
-                w, h, d = ib.get_dimension()
+    for axis in range(0, 3):
+        items_in_bin = bin.items
+        for ib in items_in_bin:
+            pivot = [0, 0, 0]
+            w, h, d = ib.get_dimension()
+            if ib.rotate:
                 if axis == Axis.WIDTH:
                     pivot = [
                         ib.position[0] + w,
@@ -164,30 +147,34 @@ class Packer:
                         ib.position[1],
                         ib.position[2] + d
                     ]
-
-                if bin.put_item(item, pivot):
-                    fitted = True
-                    break
-            if fitted:
+            if bin.put_item(item, pivot):
+                fitted = True
                 break
+        if fitted:
+            break
+    return fitted
 
-        if not fitted:
-            bin.unfitted_items.append(item)
 
-    def pack(self, bigger_first=False, distribute_items=False, number_of_decimals=DEFAULT_NUMBER_OF_DECIMALS):
-        for bin in self.bins:
-            bin.format_numbers(number_of_decimals)
+def pack(binx, biny, binz, items, return_bins=False, number_of_decimals=DEFAULT_NUMBER_OF_DECIMALS):
+    bin = Bin("", binx, binz, biny)
+    bin.format_numbers(number_of_decimals)
+    bins = [bin]
+    bins_idxs = []
 
-        for item in self.items:
-            item.format_numbers(number_of_decimals)
+    for item in items:
+        item.format_numbers(number_of_decimals)
 
-        self.bins.sort(key=lambda bin: bin.get_volume(), reverse=bigger_first)
-        self.items.sort(key=lambda item: item.get_volume(), reverse=bigger_first)
+    item_idx = 0
+    for bin in bins:
+        items_in_bin = []
+        for i in range(item_idx, len(items)):
+            fitted = pack_to_bin(bin, items[i])
+            if not fitted:
+                bins.append(Bin("", bins[0].width, bins[0].height, bins[0].depth))
+                break
+            items_in_bin.append(item_idx)
+            item_idx += 1
+        bins_idxs.append(items_in_bin)
 
-        for bin in self.bins:
-            for item in self.items:
-                self.pack_to_bin(bin, item)
+    return bins if return_bins else bins_idxs
 
-            if distribute_items:
-                for item in bin.items:
-                    self.items.remove(item)
