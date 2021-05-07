@@ -22,12 +22,6 @@ class Item:
         self.depth = set_to_decimal(self.depth, number_of_decimals)
         self.number_of_decimals = number_of_decimals
 
-    def string(self):
-        return "%s(%sx%sx%s) pos(%s) rt(%s) vol(%s)" % (
-            self.name, self.width, self.height, self.depth,
-            self.position, self.rotation_type, self.get_volume()
-        )
-
     def get_volume(self):
         return set_to_decimal(
             self.width * self.height * self.depth, self.number_of_decimals
@@ -66,12 +60,6 @@ class Bin:
         self.height = set_to_decimal(self.height, number_of_decimals)
         self.depth = set_to_decimal(self.depth, number_of_decimals)
         self.number_of_decimals = number_of_decimals
-
-    def string(self):
-        return "%s(%sx%sx%s) vol(%s)" % (
-            self.name, self.width, self.height, self.depth,
-            self.get_volume()
-        )
 
     def get_volume(self):
         return set_to_decimal(
@@ -172,7 +160,7 @@ def pack(binx, biny, binz, items, return_bins=False, number_of_decimals=DEFAULT_
             if not fitted:
                 bins.append(Bin("", bins[0].width, bins[0].height, bins[0].depth))
                 break
-            items_in_bin.append(item_idx)
+            items_in_bin.append(items[i].name)
             item_idx += 1
         bins_idxs.append(items_in_bin)
 
